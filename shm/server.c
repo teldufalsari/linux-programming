@@ -1,4 +1,3 @@
-#define _BSD_SOURCE
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -21,8 +20,7 @@ int term_g = 1;
 int main()
 {
 
-    struct sigaction term_action;
-    sigemptyset(&term_action.sa_mask);
+    struct sigaction term_action = {};
     term_action.sa_sigaction = handler;
     if ((sigaction(SIGTERM, &term_action, NULL)) 
     || (sigaction(SIGINT, &term_action, NULL)))
@@ -62,14 +60,22 @@ int main()
         sem_post(ex_sem);
         sleep(1);
     }
-    close(shm_des);
-    sem_close(ex_sem);
-    sem_unlink(SEMAPH_NAME);
-    unlink(SHM_NAME);
+    printf("\nStopping server...\n");
+    if(close(shm_des))
+        err_handle("Failed to close shared memory file", 4);
+    if(sem_close(ex_sem))
+        err_handle("Failed to close named semaphore", 4);
+    if(sem_unlink(SEMAPH_NAME))
+        err_handle("Failed to remove maned semaphore", 4);
+    if(shm_unlink(SHM_NAME))
+        err_handle("Failed to remove shared memory file", 4);
     return 0;
 }
 
 void handler(int sig, siginfo_t *si, void *unused)
 {
+    (void)sig;
+    (void)si;
+    (void)unused;
     term_g = 0;
 }
