@@ -1,4 +1,3 @@
-#define _BSD_SOURCE
 #include <sys/mman.h>
 #include <semaphore.h>
 #include <string.h>
@@ -18,8 +17,7 @@ int term_g = 1;
 
 int main()
 {
-    struct sigaction term_action;
-    sigemptyset(&term_action.sa_mask);
+    struct sigaction term_action = {};
     term_action.sa_sigaction = handler;
     if ((sigaction(SIGTERM, &term_action, NULL)) 
     || (sigaction(SIGINT, &term_action, NULL)))
@@ -55,10 +53,14 @@ int main()
         printf("[%s]\n", timebuf);
         sleep(1);
     }
+    printf("\nStopping client...\n");
     return 0;
 }
 
 void handler(int sig, siginfo_t *si, void *unused)
 {
+    (void)sig;
+    (void)si;
+    (void)unused;
     term_g = 0;
 }
