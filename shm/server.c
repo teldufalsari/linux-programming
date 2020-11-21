@@ -66,7 +66,7 @@ int main()
     if(sem_close(ex_sem))
         err_handle("Failed to close named semaphore", 4);
     if(sem_unlink(SEMAPH_NAME))
-        err_handle("Failed to remove maned semaphore", 4);
+        err_handle("Failed to remove named semaphore", 4);
     if(shm_unlink(SHM_NAME))
         err_handle("Failed to remove shared memory file", 4);
     return 0;

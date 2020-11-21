@@ -43,14 +43,12 @@ int main()
     if (ex_sem == SEM_FAILED)
         err_handle("Failed to open semaphore", 1);
     
-    char timebuf[80];
     char* src = (char*)p;
     while(term_g)
     {
         sem_wait(ex_sem);
-        strcpy(timebuf, src);
+        printf("[%s]\n", src);
         sem_post(ex_sem);
-        printf("[%s]\n", timebuf);
         sleep(1);
     }
     printf("\nStopping client...\n");
