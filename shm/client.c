@@ -6,59 +6,66 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <errno.h>
 
 #define SHM_NAME "/clock"
-#define SEMAPH_NAME "/m_sem"
-#define err_handle(message, code) {perror(message); exit(code);}
+#define TIMESTR_SIZE 64
+volatile int g_terminate = 0;
 
-void handler(int sig, siginfo_t *si, void *unused);
+struct shared_buffer_t {
+    sem_t sem;
+    char string[TIMESTR_SIZE];
+};
 
-int term_g = 1;
-
-int main()
-{
+void handler(int sig) {
+    (void)sig;
+    g_terminate = 1;
+}
+int main() {
     struct sigaction term_action = {};
-    term_action.sa_sigaction = handler;
+    term_action.sa_flags = SA_RESTART;
+    term_action.sa_handler = handler;
     if ((sigaction(SIGTERM, &term_action, NULL)) 
-    || (sigaction(SIGINT, &term_action, NULL)))
-        err_handle("sigaction", 2);
+    || (sigaction(SIGINT, &term_action, NULL))) {
+        perror("sigaction");
+        return 1;
+    }
 
-    int shm_des = shm_open(SHM_NAME, O_CREAT | O_RDONLY, 0700);
-    if (shm_des < 0)
-        err_handle("Failed to open shared memory", 1);
+    int shm_des = shm_open(SHM_NAME, O_RDWR, 0644); // File mode is ignored
+    if (shm_des < 0) {
+        if (errno == ENOENT) {
+            printf("Could not find time reference file\n");
+            return 0;
+        } else {
+            perror("Could not open shared memory file");
+            return 1;
+        }
+    }
 
     void* p = mmap(
         NULL,
         sysconf(_SC_PAGE_SIZE),
-        PROT_READ,
+        PROT_READ | PROT_WRITE,
         MAP_SHARED,
         shm_des,
         0);
-    if (p == MAP_FAILED)
-        err_handle("Failed to map memory", 3);
+    if (p == MAP_FAILED) {
+        perror("Failed to map shared memory");
+        close(shm_des);
+        unlink(SHM_NAME);
+        return 3;
+    }
     close(shm_des);
     printf("Allocated page at [%p]\n", p);
-
-    sem_t* ex_sem = sem_open(SEMAPH_NAME, O_RDWR);
-    if (ex_sem == SEM_FAILED)
-        err_handle("Failed to open semaphore", 1);
-    
-    char* src = (char*)p;
-    while(term_g)
-    {
-        sem_wait(ex_sem);
-        printf("[%s]\n", src);
-        sem_post(ex_sem);
+        
+    struct shared_buffer_t* buf = (struct shared_buffer_t*)p;
+    const char* time_str = (const char*)buf->string;
+    while(!g_terminate) {
+        sem_wait(&buf->sem);
+        printf("[%.*s]\n", TIMESTR_SIZE, time_str);
+        sem_post(&buf->sem);
         sleep(1);
     }
     printf("\nStopping client...\n");
     return 0;
-}
-
-void handler(int sig, siginfo_t *si, void *unused)
-{
-    (void)sig;
-    (void)si;
-    (void)unused;
-    term_g = 0;
 }

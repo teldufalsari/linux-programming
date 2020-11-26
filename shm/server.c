@@ -8,30 +8,50 @@
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
+#include <errno.h>
 
 #define SHM_NAME "/clock"
-#define SEMAPH_NAME "/m_sem"
-#define err_handle(message, code) {perror(message); exit(code);}
-#define TIME_OUT_FORMAT "%Y-%m-%d %H:%M:%S"
+#define TIMESTR_SIZE 64
+#define TIME_OUT_FORMAT "%Y-%m-%d UTC %z (%Z) %H:%M:%S"
+volatile int g_terminate = 0;
 
-void handler(int sig, siginfo_t *si, void *unused);
-int term_g = 1;
+struct shared_buffer_t {
+    sem_t sem;
+    char string[TIMESTR_SIZE];
+};
 
-int main()
-{
+void handler(int sig) {
+    (void)sig;
+    g_terminate = 1;
+}
 
+int main() {
     struct sigaction term_action = {};
-    term_action.sa_sigaction = handler;
+    term_action.sa_flags = SA_RESTART;
+    term_action.sa_handler = handler;
     if ((sigaction(SIGTERM, &term_action, NULL)) 
-    || (sigaction(SIGINT, &term_action, NULL)))
-        err_handle("sigaction", 2);
+    || (sigaction(SIGINT, &term_action, NULL))) {
+        perror("sigaction");
+        return 1;
+    }
 
-    //umask
+    int shm_des = shm_open(SHM_NAME, O_RDWR | O_CREAT | O_EXCL, 0644);
+    if (shm_des < 0) {
+        if (errno == EEXIST) {
+            printf("A server is already running\n");
+            return 0;
+        } else {
+            perror("Could not create shared memory file");
+            return 1;
+        }
+    }
+    if (ftruncate(shm_des, sysconf(_SC_PAGE_SIZE))) {
+        perror("ftruncate");
+        close(shm_des);
+        shm_unlink(SHM_NAME);
+        return 2;
+    }
 
-    int shm_des = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0700);
-    if (shm_des < 0)
-        err_handle("Failed to create shared memory", 1);
-    ftruncate(shm_des, 80);
     void* p = mmap(
         NULL,
         sysconf(_SC_PAGE_SIZE),
@@ -39,43 +59,34 @@ int main()
         MAP_SHARED,
         shm_des,
         0);
-    if (p == MAP_FAILED)
-        err_handle("Failed to map memory", 3);
+    if (p == MAP_FAILED) {
+        perror("Failed to map shared memory");
+        close(shm_des);
+        unlink(SHM_NAME);
+        return 3;
+    }
     printf("Allocated page at [%p]\n", p);
     
-    sem_t* ex_sem = sem_open(SEMAPH_NAME, O_CREAT, 0700, 1);
-    if (ex_sem == SEM_FAILED)
-        err_handle("Failed to open semaphore", 1);
+    struct shared_buffer_t* buf = (struct shared_buffer_t*)p;
+    sem_init(&buf->sem, 1, 1);
     time_t btime;
     struct tm* timestruct;
-    char timebuf[80];
-    char* dest = (char*)p;
-    while(term_g)
-    {
+    while(!g_terminate) {
+        sem_wait(&buf->sem);
         btime = time(NULL);
         timestruct = localtime(&btime);
-        strftime(timebuf, sizeof(timebuf), TIME_OUT_FORMAT, timestruct);
-        sem_wait(ex_sem);
-        strcpy(dest, timebuf);
-        sem_post(ex_sem);
+        strftime(buf->string, TIMESTR_SIZE, TIME_OUT_FORMAT, timestruct);
+        sem_post(&buf->sem);
         sleep(1);
     }
     printf("\nStopping server...\n");
-    if(close(shm_des))
-        err_handle("Failed to close shared memory file", 4);
-    if(sem_close(ex_sem))
-        err_handle("Failed to close named semaphore", 4);
-    if(sem_unlink(SEMAPH_NAME))
-        err_handle("Failed to remove named semaphore", 4);
-    if(shm_unlink(SHM_NAME))
-        err_handle("Failed to remove shared memory file", 4);
+    if(close(shm_des)) {
+        perror("close");
+        return 4;
+    }
+    if(shm_unlink(SHM_NAME)) {
+        perror("Failed to remove shared memory file");
+        return 4;
+    }
     return 0;
-}
-
-void handler(int sig, siginfo_t *si, void *unused)
-{
-    (void)sig;
-    (void)si;
-    (void)unused;
-    term_g = 0;
 }
