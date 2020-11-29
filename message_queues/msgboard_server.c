@@ -8,11 +8,11 @@
 
 #define DEFAULT_MSG_SIZE 8192
 #define DEFAULT_MSG_NUM 16
-struct queue_indent_t {
+typedef struct {
     mqd_t queue_des;
     const char* queue_name;
-};
-struct queue_indent_t g_exit_ident = {};
+} queue_ident_for_exit;
+queue_ident_for_exit g_exit_ident = {};
 
 void handler(int sig) {
     (void)sig;
@@ -67,7 +67,7 @@ int main(int argc, char* argv[])
         }
     }
     if ((argc - optind) != 1) {
-        printf("Usage: %s [--msgsize = x] [--msgcount = y] /queue_name\n", argv[0]);
+        printf("Usage: %s [--msgsize x] [--msgcount y] /queue_name\n", argv[0]);
         return 1;
     }
 
@@ -86,6 +86,10 @@ int main(int argc, char* argv[])
         0620,
         NULL
     );
+    if (queue < 0) {
+        perror("Could not open queue file");
+        return 1;
+    }
     struct mq_attr queue_attrs;
     if (mq_getattr(queue, &queue_attrs)) {
         perror("Could not read attributes");
@@ -99,10 +103,6 @@ int main(int argc, char* argv[])
         perror("Could not set queue attribues");
         mq_close(queue);
 
-    }
-    if (queue < 0) {
-        perror("Could not open queue file");
-        return 1;
     }
 
     g_exit_ident.queue_des = queue;
