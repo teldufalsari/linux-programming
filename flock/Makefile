@@ -9,4 +9,4 @@ main.o: main.c
 	${COMPILER} ${CFLAGS} main.c
 
 clean:
-	rm -f *.o
+	rm -f *.exe

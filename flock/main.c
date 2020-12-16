@@ -14,10 +14,15 @@
 
 int main(void) {
     int count_fd = open("count.txt", O_CREAT | O_RDWR, 0600);
-    flock(count_fd, LOCK_EX);
+    if (lockf(count_fd, F_LOCK, 0)) {
+        perror("lockf");
+        close(count_fd);
+        return 1;
+    }
     struct stat statbuf;
     if (stat("count.txt", &statbuf)) {
         perror("stat(\"count.txt\")");
+        close(count_fd);
         return 1;
     }
     long count;
@@ -28,12 +33,14 @@ int main(void) {
         ssize_t num_read = read(count_fd, strbuf, statbuf.st_size);
         if (num_read != statbuf.st_size) {
             perror("read");
+            close(count_fd);
             return 2;
         }
         errno = 0; //We need this to check conversion of string to number
         count = strtol(strbuf, NULL, 10);
         if (errno) {
             perror("strtol: conversion failed");
+            close(count_fd);
             return 3;
         }
         count += 1;
@@ -41,11 +48,16 @@ int main(void) {
     FILE* fp_counter = fdopen(count_fd, "w+");
     rewind(fp_counter);
     fprintf(fp_counter, "%li", count);
-    if (fclose(fp_counter)) {
-        perror("fclose:");
+    fflush(fp_counter);
+    if (lockf(count_fd, F_ULOCK, 0)) {
+        perror("flock");
+        fclose(fp_counter);
         return 4;
     }
-    flock(count_fd, LOCK_UN);
-    close(count_fd);
+    if (fclose(fp_counter)) {
+        perror("fclose:");
+        close(count_fd);
+        return 5;
+    }
     return 0;
 }
