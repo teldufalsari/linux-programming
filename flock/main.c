@@ -48,7 +48,11 @@ int main(void) {
     FILE* fp_counter = fdopen(count_fd, "w+");
     rewind(fp_counter);
     fprintf(fp_counter, "%li", count);
-    fflush(fp_counter);
+    if (fflush(fp_counter)) {
+        perror("Failed to write data");
+        fclose(fp_counter);
+        return 6;
+    }
     if (lockf(count_fd, F_ULOCK, 0)) {
         perror("flock");
         fclose(fp_counter);
