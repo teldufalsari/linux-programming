@@ -25,8 +25,12 @@ int main()
     umask(old_mask);
 
     char* workdir = get_current_dir_name();
+    if (workdir == NULL) {
+        puts("CWD: ???");
+    } else {
     printf("CWD: '%s'\n", workdir);
     free(workdir);
+    }
 
     errno = 0;
     int priority = getpriority(PRIO_PROCESS, th_pid);

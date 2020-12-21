@@ -62,8 +62,12 @@ int print_info()
     );
 
     char* workdir = get_current_dir_name();
+    if (workdir == NULL) {
+        puts("CWD: ???");
+    } else {
     printf("CWD: '%s'\n", workdir);
     free(workdir);
+    }
 
     return 0;
 }
