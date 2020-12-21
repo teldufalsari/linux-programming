@@ -7,6 +7,7 @@
 #include <pwd.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <grp.h>
 
 int main()
 {
@@ -55,9 +56,16 @@ int main()
         free(groups_list);
         return 2;
     }
+    struct group* gr_info_p;
     printf("Supplementary groups:");
-    for (unsigned i = 0; i < (unsigned)groups_list_size; i++) 
+    for (unsigned i = 0; i < (unsigned)groups_list_size; i++) {
         printf(" [%d]", groups_list[i]);
+        gr_info_p = getgrgid(groups_list[i]);
+        if (gr_info_p == NULL)
+            printf("-(?)");
+        else
+            printf("-(%s)", gr_info_p->gr_name);
+    }
     putchar('\n');
     free(groups_list);
 
