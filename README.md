@@ -4,6 +4,7 @@
 ## Задачи
 
 * 1-7 - my_copy
+* 6.4 - list
 * 10+15.2 - inotify
 * 11 - flock
 * 12, 13 - procinfo
