@@ -7,9 +7,8 @@
 #include <time.h>
 #include <pwd.h>
 
-
 void handler(int sig);
-char* swear_words[] = {
+const char* swear_words[] = {
     "Dear %s, you underestimate my power!\n",
     "I have no permission to obey YOU, %s!\n",
     "Negative!\n",
@@ -24,15 +23,19 @@ int main(void)
     struct passwd*  pass = getpwuid(getuid());
     uname = pass->pw_name;
     srand((unsigned)getpid());
-    struct sigaction universal_sa;
+    struct sigaction universal_sa = {};
+    universal_sa.sa_handler = handler;
     sigemptyset(&universal_sa.sa_mask);
-    universal_sa.sa_sigaction = handler;
+    universal_sa.sa_flags = SA_RESTART;
     for (int sig_num = 1; sig_num <= 31; sig_num++)
-        sigaction(sig_num, &universal_sa, NULL);
+        if (sigaction(sig_num, &universal_sa, NULL)) {
+            perror("sigaction");
+            printf("Failed to set action for signal %i:\n", sig_num);
+            psignal(sig_num, NULL);
+        }
+
     while (1)
-    {
         pause();
-    }
     return 0;
 }
 

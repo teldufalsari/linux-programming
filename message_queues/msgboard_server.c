@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
             if (errno != 0) {
                 perror("Could not retrieve max message length value");
                 printf("Setting default value: %li\n", msg_size);
-            } else if (requested_size <= DEFAULT_MSG_SIZE) {
+            } else if (requested_size < DEFAULT_MSG_SIZE) {
                 printf("Too small message size '%li', setting default value: %li\n", requested_size, msg_size);
             } else {
                 msg_size = requested_size;

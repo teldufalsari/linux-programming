@@ -3,7 +3,7 @@
  * It should work correctly with an empty, nonexisting file or when several processes
  * are running simultaneously.
  */
-
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -13,35 +13,47 @@
 #include <errno.h>
 
 int main(void) {
-    int count_fd = open("count.txt", O_CREAT | O_RDWR, 0600);
+    char* cwd = get_current_dir_name();
+    int cwd_fd = open(cwd, O_DIRECTORY);
+    if (cwd_fd < 0) {
+        perror("Could not open program directory");
+        free(cwd);
+        return 1;
+    }
+    free(cwd);
+
+    int count_fd = openat(cwd_fd, "count.txt", O_CREAT | O_RDWR, 0600);
     if (lockf(count_fd, F_LOCK, 0)) {
         perror("lockf");
         close(count_fd);
-        return 1;
+        close(cwd_fd);
+        return 2;
     }
     struct stat statbuf;
-    if (stat("count.txt", &statbuf)) {
+    if (fstatat(cwd_fd, "count.txt", &statbuf, 0) == -1) {
         perror("stat(\"count.txt\")");
         close(count_fd);
-        return 1;
+        close(cwd_fd);
+        return 3;
     }
-    long count;
+    close(cwd_fd);
+    long count= 0;
     if (statbuf.st_size == 0)
         count = 1;
     else {
         char strbuf[16] = "";
-        ssize_t num_read = read(count_fd, strbuf, statbuf.st_size);
+        ssize_t num_read = read(count_fd, strbuf, (size_t)statbuf.st_size);
         if (num_read != statbuf.st_size) {
             perror("read");
             close(count_fd);
-            return 2;
+            return 4;
         }
         errno = 0; //We need this to check conversion of string to number
         count = strtol(strbuf, NULL, 10);
         if (errno) {
             perror("strtol: conversion failed");
             close(count_fd);
-            return 3;
+            return 5;
         }
         count += 1;
     }
@@ -56,12 +68,11 @@ int main(void) {
     if (lockf(count_fd, F_ULOCK, 0)) {
         perror("flock");
         fclose(fp_counter);
-        return 4;
+        return 7;
     }
     if (fclose(fp_counter)) {
-        perror("fclose:");
-        close(count_fd);
-        return 5;
+        perror("fclose");
+        return 8;
     }
     return 0;
 }

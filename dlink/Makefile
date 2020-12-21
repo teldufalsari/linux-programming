@@ -3,7 +3,7 @@ CFLAGS = -Wall -Wextra -Wfloat-equal -Wundef -Wshadow -Wconversion -Wunreachable
 
 all: 
 	${COMPILER} ${CFLAGS} -ldl dlink.c -o dlink.exe
-	${COMPILER} ${CFLAGS} -ldl integrate.c -o integrate
+	${COMPILER} ${CFLAGS} -ldl integrate.c -o integrate.exe
 
 clean:
 	rm -f *.exe

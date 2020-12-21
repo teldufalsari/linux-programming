@@ -16,7 +16,7 @@
 volatile int g_terminate = 0;
 
 struct shared_buffer_t {
-    sem_t sem;
+    unsigned write_flag;
     char string[TIMESTR_SIZE];
 };
 
@@ -68,15 +68,14 @@ int main() {
     printf("Allocated page at [%p]\n", p);
     
     struct shared_buffer_t* buf = (struct shared_buffer_t*)p;
-    sem_init(&buf->sem, 1, 1);
+    buf->write_flag = 0;
     time_t btime;
     struct tm* timestruct;
     while(!g_terminate) {
-        sem_wait(&buf->sem);
+        buf->write_flag += 1;
         btime = time(NULL);
         timestruct = localtime(&btime);
         strftime(buf->string, TIMESTR_SIZE, TIME_OUT_FORMAT, timestruct);
-        sem_post(&buf->sem);
         sleep(1);
     }
     printf("\nStopping server...\n");

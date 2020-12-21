@@ -13,7 +13,7 @@
 volatile int g_terminate = 0;
 
 struct shared_buffer_t {
-    sem_t sem;
+    unsigned write_flag;
     char string[TIMESTR_SIZE];
 };
 
@@ -60,10 +60,12 @@ int main() {
         
     struct shared_buffer_t* buf = (struct shared_buffer_t*)p;
     const char* time_str = (const char*)buf->string;
+    unsigned int read_flag;
     while(!g_terminate) {
-        sem_wait(&buf->sem);
+        read_flag = buf->write_flag;
         printf("[%.*s]\n", TIMESTR_SIZE, time_str);
-        sem_post(&buf->sem);
+        if (read_flag != buf->write_flag)
+            continue;
         sleep(1);
     }
     printf("\nStopping client...\n");

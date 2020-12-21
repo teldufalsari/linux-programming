@@ -3,10 +3,8 @@ CFLAGS = -Wall -Wextra -Wfloat-equal -Wundef -Wshadow -Wconversion -Wunreachable
 
 all: notify
 
-notify: main.o
-
-main.o: main.c
-	${COMPILER} ${CFLAGS} main.c
+notify: main.c
+	${COMPILER} ${CFLAGS} main.c -o inotify.exe
 
 clean:
-	rm -f *.o
+	rm -f *.exe

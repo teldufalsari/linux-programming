@@ -4,9 +4,9 @@ CFLAGS = -Wall -Wextra -Wfloat-equal -Wundef -Wshadow -Wconversion -Wunreachable
 all: info
 
 info: info.c childinfo.c wait4parent.c
-	${COMPILER} ${CFLAGS} childinfo.c -o childinfo
-	${COMPILER} ${CFLAGS} info.c -o info
-	${COMPILER} ${CFLAGS} wait4parent.c -o wait4parent
+	${COMPILER} ${CFLAGS} childinfo.c -o childinfo.exe
+	${COMPILER} ${CFLAGS} info.c -o info.exe
+	${COMPILER} ${CFLAGS} wait4parent.c -o wait4parent.exe
 
 clean:
-	rm -f *.o
+	rm -f *.exe

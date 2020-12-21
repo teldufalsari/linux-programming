@@ -25,27 +25,32 @@ void* thread_body(void* arg)
 
 int main()
 {
+    int ret = 0;
     sem_t* mutex_sem = sem_open("mutex_sem", O_CREAT, 0700, 1);
     if (mutex_sem == SEM_FAILED)
     {
         perror("Failed to create a named semaphore");
-        return 2;
+        return 1;
     }
     pthread_t workers[NUM_THREADS];
     for (unsigned i = 0; i < NUM_THREADS; i++)
         if ((errno = pthread_create(workers + i, NULL, &thread_body, mutex_sem)) != 0)
         {
             perror("pthread: failed to create thread");
-            return 1;
+            ret = 2;
+            goto exit_procedure;
         }
     for (unsigned i = 0; i < NUM_THREADS; i++)
         if ((errno = pthread_join(workers[i], NULL)) != 0)
         {
             perror("pthread: failed to join thread");
-            return 1;
+            ret = 3;
+            goto exit_procedure;
         }
+    
+    printf("The calculations say 12 000 000 is equal to %u\n", g_counter);
+    exit_procedure:
     sem_close(mutex_sem);
     sem_unlink("mutex_sem");
-    printf("The calculations say 12 000 000 is equal to %u\n", g_counter);
-    return 0;
+    return ret;
 }

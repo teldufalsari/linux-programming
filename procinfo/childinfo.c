@@ -16,7 +16,7 @@ int main()
     switch (barn_pid)
     {
     case -1:
-        perror("fork:");
+        perror("fork");
         return -1;
 
     case 0: //child process
@@ -25,8 +25,14 @@ int main()
         break;
     default:
         printf("\nThis is parent\n");
-        waitpid(barn_pid, NULL, WUNTRACED);
-        printf("Good boi.\n");
+        int status = 0;
+        waitpid(barn_pid, &status, WUNTRACED);
+        if (WIFEXITED(status)) {
+            printf("Child exited with code %d\n", WEXITSTATUS(status));
+        } else {
+            printf("Child terminated by signal %i\n", WTERMSIG(status));
+            psignal(WTERMSIG(status), NULL);
+        }
     }
     return 0;
 }
@@ -34,23 +40,19 @@ int main()
 int print_info()
 {
     pid_t th_pid = getpid();
-    printf("PID = [%i]\n", th_pid);
+    pid_t th_ppid = getppid();
     gid_t th_gid = getgid();
-    printf("GID = [%i]\n", th_gid);
-    th_gid = getegid();
-    printf("Effective GID = [%i]\n", th_gid);
-
-    mode_t old_mask = umask(0);
-    printf("Umask = [%04x]\n", old_mask);
-    umask(old_mask);
-
-    struct passwd *pass = getpwuid(getuid());
-    printf("User: '%s'\nPassword: '%s'\nUID: [%i]\nGID: [%i]\n", 
-    pass->pw_name, pass->pw_passwd, pass->pw_uid, pass->pw_gid);
+    gid_t th_egid = getegid();
+    pid_t th_sid = getsid(th_pid);
+    printf(
+        "PID = [%d], Parent PID = [%d], GID = [%d], EGID = [%d], SID = [%d]\n",
+        th_pid, th_ppid, th_gid, th_egid, th_sid
+    );
 
     char* workdir = get_current_dir_name();
     printf("CWD: '%s'\n", workdir);
     free(workdir);
+
     return 0;
 }
 
